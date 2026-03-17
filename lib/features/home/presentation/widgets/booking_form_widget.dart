@@ -18,6 +18,9 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
   Timer? _debounce;
   Completer<Iterable<String>>? _completer;
 
+  TextEditingController? _pickupController;
+  TextEditingController? _destinationController;
+
   DateTime? _pickupDate;
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -138,17 +141,18 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
     _debounce = Timer(const Duration(milliseconds: 800), () async {
       try {
         final response = await _dio.get(
-          'https://nominatim.openstreetmap.org/search',
+          'https://api.geoapify.com/v1/geocode/autocomplete',
           queryParameters: {
-            'q': query,
-            'format': 'json',
-            'limit': 5,
-            'featuretype': 'city',
-            'countrycodes': 'in',
+            'text': query,
+            'apiKey': '985f8086ab654265beded7b969399a18',
           },
         );
-        final data = response.data as List;
-        final results = data.map((e) => e['name'].toString()).toSet().toList();
+        
+        final data = response.data['features'] as List;
+        final results = data.map((e) {
+          final properties = e['properties'] as Map<String, dynamic>;
+          return properties['formatted']?.toString() ?? properties['city']?.toString() ?? 'Unknown Location';
+        }).toSet().toList();
         
         if (_completer != null && !_completer!.isCompleted) {
           _completer!.complete(results);
@@ -205,9 +209,15 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
             title: pickupLabel,
             hint: 'Type City Name',
             trailingWidget: !isLocal
-                ? const Icon(Icons.close, color: AppColors.black, size: 20)
+                ? GestureDetector(
+                    onTap: () {
+                      _pickupController?.clear();
+                    },
+                    child: const Icon(Icons.close, color: AppColors.black, size: 20),
+                  )
                 : null,
             isAutocomplete: true,
+            onControllerReady: (c) => _pickupController = c,
           ),
           const SizedBox(height: 12),
 
@@ -221,8 +231,14 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
               hint: 'Type City Name',
               trailingWidget: isRoundTrip
                   ? const Icon(Icons.add, color: AppColors.black, size: 24)
-                  : const Icon(Icons.close, color: AppColors.black, size: 20),
+                  : GestureDetector(
+                      onTap: () {
+                        _destinationController?.clear();
+                      },
+                      child: const Icon(Icons.close, color: AppColors.black, size: 20),
+                    ),
               isAutocomplete: true,
+              onControllerReady: (c) => _destinationController = c,
             ),
             const SizedBox(height: 12),
           ],
@@ -328,6 +344,7 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
     required String hint,
     Widget? trailingWidget,
     bool isAutocomplete = false,
+    void Function(TextEditingController)? onControllerReady,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -376,6 +393,12 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
                             focusNode,
                             onFieldSubmitted,
                           ) {
+                            if (onControllerReady != null) {
+                              // We use a post-frame callback to avoid state issues if updating during build
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                onControllerReady(textEditingController);
+                              });
+                            }
                             return TextField(
                               controller: textEditingController,
                               focusNode: focusNode,
