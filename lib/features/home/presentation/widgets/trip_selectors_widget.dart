@@ -26,15 +26,15 @@ class TripTypeSelector extends ConsumerWidget {
           ref: ref,
           category: TripCategory.local, 
           assetPath: 'assets/LocalTrip_icon.png', 
-          label: 'Local Trip', 
+          label: 'Local Trip',
           isSelected: selectedCategory == TripCategory.local,
           isSvg: false,
         ),
         _buildTripTypeCard(
           ref: ref,
-          category: TripCategory.airport, 
-          assetPath: 'assets/AirportTransfer_icon.png', 
-          label: 'Airport Transfer', 
+          category: TripCategory.airport,
+          assetPath: 'assets/AirportTransfer_icon.png',
+          label: 'Airport Transfer',
           isSelected: selectedCategory == TripCategory.airport,
           isSvg: false,
         ),
@@ -52,12 +52,12 @@ class TripTypeSelector extends ConsumerWidget {
   }) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => ref.read(tripCategoryProvider.notifier).state = category,
+        onTap: () => ref.read(tripCategoryProvider.notifier).state = category,  
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primaryGreen : AppColors.white,
+            color: isSelected ? AppColors.primaryGreen : AppColors.white,       
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -83,7 +83,7 @@ class TripTypeSelector extends ConsumerWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: isSelected ? AppColors.white : AppColors.black,
+                  color: isSelected ? AppColors.white : AppColors.black,        
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -102,6 +102,11 @@ class TripModeToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(tripModeProvider);
+    final category = ref.watch(tripCategoryProvider);
+
+    final bool isAirport = category == TripCategory.airport;
+    final String leftText = isAirport ? 'To The Airport' : 'One-way';
+    final String rightText = isAirport ? 'From The Airport' : 'Round Trip';
 
     return Row(
       children: [
@@ -112,11 +117,12 @@ class TripModeToggle extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: mode == TripMode.oneWay ? AppColors.primaryGreen : AppColors.white,
-                borderRadius: const BorderRadius.horizontal(left: Radius.circular(20), right: Radius.circular(20)),
+                borderRadius: BorderRadius.circular(20),
+                border: mode == TripMode.oneWay ? null : Border.all(color: AppColors.primaryGreen, width: 1),
               ),
               alignment: Alignment.center,
               child: Text(
-                'One-way',
+                leftText,
                 style: TextStyle(
                   color: mode == TripMode.oneWay ? AppColors.white : AppColors.primaryGreen,
                   fontWeight: FontWeight.bold,
@@ -133,11 +139,12 @@ class TripModeToggle extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: mode == TripMode.roundTrip ? AppColors.primaryGreen : AppColors.white,
-                borderRadius: const BorderRadius.horizontal(left: Radius.circular(20), right: Radius.circular(20)),
+                borderRadius: BorderRadius.circular(20),
+                border: mode == TripMode.roundTrip ? null : Border.all(color: AppColors.primaryGreen, width: 1),
               ),
               alignment: Alignment.center,
               child: Text(
-                'Round Trip',
+                rightText,
                 style: TextStyle(
                   color: mode == TripMode.roundTrip ? AppColors.white : AppColors.primaryGreen,
                   fontWeight: FontWeight.bold,

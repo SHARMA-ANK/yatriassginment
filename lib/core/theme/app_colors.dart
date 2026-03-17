@@ -7,7 +7,7 @@ class AppColors {
   static const Color white = Colors.white;
   static const Color black = Colors.black;
   static const Color greyText = Colors.grey;
-  static const Color lightGreenForm = Color(
-    0xFFD9EDCD,
-  ); // Approximation from screenshot for form fields
+  static const Color lightGreenForm = Color(0xFFD9EDCD);
+  static const Color inputBackground = Color(0xFF585858);
+  // Approximation from screenshot for form fields
 }
