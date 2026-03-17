@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../pages/route_map_page.dart';
 import '../providers/home_providers.dart';
 
 class BookingFormWidget extends ConsumerStatefulWidget {
@@ -20,6 +22,8 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
 
   TextEditingController? _pickupController;
   TextEditingController? _destinationController;
+
+  final Map<String, LatLng> _locationCache = {};
 
   DateTime? _pickupDate;
   DateTime? _fromDate;
@@ -39,9 +43,19 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
     return '${hour.toString().padLeft(2, '0')}:$minute $period';
   }
 
-  Future<void> _selectDate(BuildContext context, {required bool isRoundTrip, bool isFrom = false}) async {
-    final DateTime initialDate = isFrom ? (_fromDate ?? DateTime.now()) : (!isFrom && isRoundTrip ? (_toDate ?? _fromDate ?? DateTime.now()) : (_pickupDate ?? DateTime.now()));
-    final DateTime firstDateDate = (!isFrom && isRoundTrip && _fromDate != null) ? _fromDate! : DateTime.now();
+  Future<void> _selectDate(
+    BuildContext context, {
+    required bool isRoundTrip,
+    bool isFrom = false,
+  }) async {
+    final DateTime initialDate = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (!isFrom && isRoundTrip
+              ? (_toDate ?? _fromDate ?? DateTime.now())
+              : (_pickupDate ?? DateTime.now()));
+    final DateTime firstDateDate = (!isFrom && isRoundTrip && _fromDate != null)
+        ? _fromDate!
+        : DateTime.now();
 
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -100,10 +114,16 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
             ),
             timePickerTheme: TimePickerThemeData(
               dialHandColor: AppColors.primaryGreen,
-              hourMinuteColor: WidgetStateColor.resolveWith((states) =>
-                  states.contains(WidgetState.selected) ? AppColors.primaryGreen : const Color(0xFFE2F4D7)),
-              hourMinuteTextColor: WidgetStateColor.resolveWith((states) =>
-                  states.contains(WidgetState.selected) ? AppColors.white : AppColors.black),
+              hourMinuteColor: WidgetStateColor.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? AppColors.primaryGreen
+                    : const Color(0xFFE2F4D7),
+              ),
+              hourMinuteTextColor: WidgetStateColor.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? AppColors.white
+                    : AppColors.black,
+              ),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
@@ -124,7 +144,8 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
   }
 
   Future<Iterable<String>> _fetchLocations(String query) async {
-    if (query.isEmpty || query.length < 3) return const Iterable<String>.empty();
+    if (query.isEmpty || query.length < 3)
+      return const Iterable<String>.empty();
 
     // Cancel the previous timer if the user is still typing
     if (_debounce?.isActive ?? false) {
@@ -147,13 +168,29 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
             'apiKey': '985f8086ab654265beded7b969399a18',
           },
         );
-        
+
         final data = response.data['features'] as List;
-        final results = data.map((e) {
-          final properties = e['properties'] as Map<String, dynamic>;
-          return properties['formatted']?.toString() ?? properties['city']?.toString() ?? 'Unknown Location';
-        }).toSet().toList();
-        
+        final results = data
+            .map((e) {
+              final properties = e['properties'] as Map<String, dynamic>;
+              final displayName =
+                  properties['formatted']?.toString() ??
+                  properties['city']?.toString() ??
+                  'Unknown Location';
+
+              if (properties.containsKey('lat') &&
+                  properties.containsKey('lon')) {
+                _locationCache[displayName] = LatLng(
+                  (properties['lat'] as num).toDouble(),
+                  (properties['lon'] as num).toDouble(),
+                );
+              }
+
+              return displayName;
+            })
+            .toSet()
+            .toList();
+
         if (_completer != null && !_completer!.isCompleted) {
           _completer!.complete(results);
         }
@@ -213,7 +250,11 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
                     onTap: () {
                       _pickupController?.clear();
                     },
-                    child: const Icon(Icons.close, color: AppColors.black, size: 20),
+                    child: const Icon(
+                      Icons.close,
+                      color: AppColors.black,
+                      size: 20,
+                    ),
                   )
                 : null,
             isAutocomplete: true,
@@ -235,7 +276,11 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
                       onTap: () {
                         _destinationController?.clear();
                       },
-                      child: const Icon(Icons.close, color: AppColors.black, size: 20),
+                      child: const Icon(
+                        Icons.close,
+                        color: AppColors.black,
+                        size: 20,
+                      ),
                     ),
               isAutocomplete: true,
               onControllerReady: (c) => _destinationController = c,
@@ -284,7 +329,8 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () => _selectDate(context, isRoundTrip: true, isFrom: true),
+              onTap: () =>
+                  _selectDate(context, isRoundTrip: true, isFrom: true),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -299,7 +345,11 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(_fromDate),
-                    style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -312,7 +362,8 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () => _selectDate(context, isRoundTrip: true, isFrom: false),
+              onTap: () =>
+                  _selectDate(context, isRoundTrip: true, isFrom: false),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -327,7 +378,11 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(_toDate),
-                    style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -350,120 +405,128 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE2F4D7),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          iconWidget,
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryGreen,
-                    fontSize: 13,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE2F4D7),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            iconWidget,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryGreen,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                if (isAutocomplete)
-                  SizedBox(
-                    height: 24,
-                    child: Autocomplete<String>(
-                      optionsBuilder:
-                          (TextEditingValue textEditingValue) async {
-                            if (textEditingValue.text == '') {
-                              return const Iterable<String>.empty();
-                            }
-                            return await _fetchLocations(textEditingValue.text);
-                          },
-                      onSelected: (String selection) {
-                        debugPrint('You just selected ');
-                      },
-                      fieldViewBuilder:
-                          (
-                            context,
-                            textEditingController,
-                            focusNode,
-                            onFieldSubmitted,
-                          ) {
-                            if (onControllerReady != null) {
-                              // We use a post-frame callback to avoid state issues if updating during build
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                onControllerReady(textEditingController);
-                              });
-                            }
-                            return TextField(
-                              controller: textEditingController,
-                              focusNode: focusNode,
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: hint,
-                                hintStyle: const TextStyle(
+                  if (isAutocomplete)
+                    SizedBox(
+                      height: 24,
+                      child: Autocomplete<String>(
+                        optionsBuilder:
+                            (TextEditingValue textEditingValue) async {
+                              if (textEditingValue.text == '') {
+                                return const Iterable<String>.empty();
+                              }
+                              return await _fetchLocations(
+                                textEditingValue.text,
+                              );
+                            },
+                        onSelected: (String selection) {
+                          debugPrint('You just selected ');
+                        },
+                        fieldViewBuilder:
+                            (
+                              context,
+                              textEditingController,
+                              focusNode,
+                              onFieldSubmitted,
+                            ) {
+                              if (onControllerReady != null) {
+                                // We use a post-frame callback to avoid state issues if updating during build
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  onControllerReady(textEditingController);
+                                });
+                              }
+                              return TextField(
+                                controller: textEditingController,
+                                focusNode: focusNode,
+                                style: const TextStyle(
                                   color: Colors.black54,
                                   fontSize: 12,
                                 ),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            );
-                          },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4.0,
-                            borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(
-                              width: 250,
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                shrinkWrap: true,
-                                itemCount: options.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final String option = options.elementAt(
-                                    index,
-                                  );
-                                  return InkWell(
-                                    onTap: () {
-                                      onSelected(option);
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Text(option),
-                                    ),
-                                  );
-                                },
+                                decoration: InputDecoration(
+                                  hintText: hint,
+                                  hintStyle: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 12,
+                                  ),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              );
+                            },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4.0,
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 250,
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder:
+                                      (BuildContext context, int index) {
+                                        final String option = options.elementAt(
+                                          index,
+                                        );
+                                        return InkWell(
+                                          onTap: () {
+                                            onSelected(option);
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(16.0),
+                                            child: Text(option),
+                                          ),
+                                        );
+                                      },
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
+                    )
+                  else ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      hint,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
                     ),
-                  )
-                else ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    hint,
-                    style: const TextStyle(color: Colors.black54, fontSize: 12),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          trailingWidget ?? const SizedBox.shrink(),
-        ],
-      ),
+            trailingWidget ?? const SizedBox.shrink(),
+          ],
+        ),
       ),
     );
   }
@@ -480,7 +543,36 @@ class _BookingFormWidgetState extends ConsumerState<BookingFormWidget> {
           ),
           elevation: 0,
         ),
-        onPressed: () {},
+        onPressed: () {
+          final pickup = _pickupController?.text;
+          final drop = _destinationController?.text;
+
+          if (pickup != null &&
+              drop != null &&
+              _locationCache.containsKey(pickup) &&
+              _locationCache.containsKey(drop)) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RouteMapPage(
+                  pickup: _locationCache[pickup]!,
+                  destination: _locationCache[drop]!,
+                  pickupName: pickup,
+                  destinationName: drop,
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Please select valid pickup and destination cities from the suggestions.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
         child: const Text(
           'Explore Cabs',
           style: TextStyle(
